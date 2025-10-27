@@ -1,10 +1,19 @@
 // src/components/AvatarScene.tsx
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment, useGLTF } from "@react-three/drei";
+import { useEffect } from "react";
 
 function AvatarModel() {
-  const { scene } = useGLTF("/models/avatar.glb"); // 👈 put your .glb file in public/models/
-  return <primitive object={scene} scale={1.5} position={[0, -1, 0]} />;
+  const gltf = useGLTF("/models/avatar.glb"); // 👈 put your .glb file in public/models/
+
+  useEffect(() => {
+    console.log("GLTF scene:", gltf.scene);
+    console.log("Nodes:", gltf.nodes);
+    console.log("Materials:", gltf.materials);
+    console.log("Animations:", gltf.animations);
+  }, [gltf]);
+
+  return <primitive object={gltf.scene} scale={1.5} position={[0, -1, 0]} />;
 }
 
 export default function AvatarScene() {
@@ -23,7 +32,7 @@ export default function AvatarScene() {
         <directionalLight position={[1, 1, 1]} intensity={1.5} />
         <AvatarModel />
         <Environment preset="studio" />
-        <OrbitControls enablePan={false} />
+        <OrbitControls target={[0, 1.5, 0]} enablePan={false} />
       </Canvas>
     </div>
   );
