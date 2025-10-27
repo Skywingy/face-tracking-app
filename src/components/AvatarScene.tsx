@@ -1,44 +1,30 @@
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useRef } from "react";
-import { Mesh } from "three";
+// src/components/AvatarScene.tsx
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Environment, useGLTF } from "@react-three/drei";
 
-function AvatarModel({ blendshapes }: { blendshapes: Record<string, number> }) {
-  const leftEye = useRef<Mesh>(null);
-  const brow = useRef<Mesh>(null);
-
-  useFrame(() => {
-    if (leftEye.current && brow.current) {
-      const blink = blendshapes["eyeBlinkLeft"] ?? 0;
-      const browUp = blendshapes["browInnerUp"] ?? 0;
-
-      leftEye.current.scale.y = 1 - blink * 0.8;
-      brow.current.position.y = 0.3 + browUp * 0.2;
-    }
-  });
-
-  return (
-    <>
-      <ambientLight />
-      <mesh ref={leftEye} position={[-0.3, 0, 0]}>
-        <sphereGeometry args={[0.1]} />
-        <meshStandardMaterial color="white" />
-      </mesh>
-      <mesh ref={brow} position={[0, 0.3, 0]}>
-        <boxGeometry args={[0.5, 0.05, 0.05]} />
-        <meshStandardMaterial color="brown" />
-      </mesh>
-    </>
-  );
+function AvatarModel() {
+  const { scene } = useGLTF("/models/avatar.glb"); // 👈 put your .glb file in public/models/
+  return <primitive object={scene} scale={1.5} position={[0, -1, 0]} />;
 }
 
-export default function AvatarScene({
-  blendshapes,
-}: {
-  blendshapes: Record<string, number>;
-}) {
+export default function AvatarScene() {
   return (
-    <Canvas camera={{ position: [0, 0, 3] }}>
-      <AvatarModel blendshapes={blendshapes} />
-    </Canvas>
+    <div
+      style={{
+        width: 640,
+        height: 480,
+        border: "1px solid #444",
+        borderRadius: "8px",
+        overflow: "hidden",
+      }}
+    >
+      <Canvas camera={{ position: [0, 0, 3] }}>
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[1, 1, 1]} intensity={1.5} />
+        <AvatarModel />
+        <Environment preset="studio" />
+        <OrbitControls enablePan={false} />
+      </Canvas>
+    </div>
   );
 }

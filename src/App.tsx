@@ -1,18 +1,24 @@
-import { useState } from "react";
-import "./App.css";
 import FaceTracker from "./components/FaceTracker";
 import AvatarScene from "./components/AvatarScene";
+import { useState } from "react";
 
 function App() {
   const [blendshapes, setBlendshapes] = useState<Record<string, number>>({});
 
   return (
-    <>
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-center h-screen">
-        <FaceTracker onBlendShapes={setBlendshapes} />
-        <AvatarScene blendshapes={blendshapes} />
-      </div>
-    </>
+    <div
+      style={{
+        display: "flex",
+        gap: "1rem",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100vh",
+        background: "#111",
+      }}
+    >
+      <FaceTracker onBlendShapes={setBlendshapes} />
+      <AvatarScene />
+    </div>
   );
 }
 
