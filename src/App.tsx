@@ -17,7 +17,7 @@ function App() {
       }}
     >
       <FaceTracker onBlendShapes={setBlendshapes} />
-      <AvatarScene />
+      <AvatarScene blendshapes={blendshapes} />
     </div>
   );
 }
