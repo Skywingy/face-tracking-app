@@ -1,5 +1,6 @@
 import FaceTracker from "./components/FaceTracker";
 import AvatarScene from "./components/AvatarScene";
+import CameraView from "./components/CameraView";
 import { useState } from "react";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         background: "#111",
       }}
     >
+      <CameraView />
       <FaceTracker onBlendShapes={setBlendshapes} />
       <AvatarScene blendshapes={blendshapes} />
     </div>
