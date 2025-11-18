@@ -1,3 +1,4 @@
+// src/components/FaceTracker.tsx
 import { useEffect, useRef, useState } from "react";
 import {
   FaceLandmarker,
@@ -6,9 +7,12 @@ import {
 } from "@mediapipe/tasks-vision";
 
 export default function FaceTracker({
-  onBlendShapes,
+  onFaceData,
 }: {
-  onBlendShapes: (blendshapes: Record<string, number>) => void;
+  onFaceData: (data: {
+    blendshapes: Record<string, number>;
+    headRotation: { x: number; y: number; z: number };
+  }) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,7 +41,11 @@ export default function FaceTracker({
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        try {
+          await videoRef.current.play();
+        } catch (err) {
+          console.warn("Video play interrupted:", err);
+        }
       }
 
       setReady(true);
@@ -119,14 +127,48 @@ export default function FaceTracker({
           }
         }
 
+        // prepare outputs
+        let shapes: Record<string, number> = {};
+        let headRotation = { x: 0, y: 0, z: 0 };
+
         if (result?.faceBlendshapes?.length) {
-          const shapes = Object.fromEntries(
+          shapes = Object.fromEntries(
             result.faceBlendshapes[0].categories.map((c) => [
               c.categoryName,
               c.score,
             ])
           );
-          onBlendShapes(shapes);
+        }
+
+        // extract head rotation from facialTransformationMatrixes (if present)
+        if (result?.facialTransformationMatrixes?.length) {
+          const m = result.facialTransformationMatrixes[0].data;
+
+          const r00 = m[0],
+            r01 = m[1],
+            r02 = m[2];
+          const r10 = m[4],
+            r11 = m[5],
+            r12 = m[6];
+          const r20 = m[8],
+            r21 = m[9],
+            r22 = m[10];
+
+          headRotation = {
+            x: Math.atan2(r21, r22),
+            y: Math.atan2(-r20, Math.sqrt(r21 * r21 + r22 * r22)),
+            z: Math.atan2(r10, r00),
+          };
+
+          // compensate for mirrored display (we mirror video/canvas visually)
+          headRotation.y *= -1;
+        }
+
+        // send both blendshapes and headRotation
+        try {
+          onFaceData({ blendshapes: shapes, headRotation });
+        } catch (err) {
+          // avoid noisy errors if parent hasn't provided handler
         }
 
         animationFrameId = requestAnimationFrame(detectFrame);
@@ -138,7 +180,8 @@ export default function FaceTracker({
     init();
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [onBlendShapes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFaceData]);
 
   return (
     <div
@@ -155,13 +198,15 @@ export default function FaceTracker({
         ref={videoRef}
         autoPlay
         playsInline
+        muted
         width={640}
         height={480}
         style={{
           position: "absolute",
           top: 0,
           left: 0,
-          //transform: "scaleX(-1)",
+          transform: "scaleX(-1)",
+          objectFit: "cover",
         }}
       />
       <canvas
@@ -173,7 +218,7 @@ export default function FaceTracker({
           top: 0,
           left: 0,
           pointerEvents: "none",
-          //transform: "scaleX(-1)",
+          transform: "scaleX(-1)",
         }}
       />
       {!ready && (
