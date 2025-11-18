@@ -113,22 +113,15 @@ function AvatarModel({ blendshapes, headRotation }: AvatarModelProps) {
       }
     }
 
-    // Apply smoothed head rotation from headRotation prop
+    // Apply head rotation from headRotation prop directly (no smoothing)
     if (headRef.current) {
-      // convert Euler (MediaPipe) to THREE.Quaternion
       const euler = new THREE.Euler(
         headRotation.x,
         headRotation.y,
         headRotation.z,
         "XYZ"
       );
-      targetQuat.current.setFromEuler(euler);
-
-      // slerp the smoothed quaternion towards target for smoothing
-      smoothedQuat.current.slerp(targetQuat.current, 0.15); // smoothing factor (0-1)
-
-      // apply to head bone
-      headRef.current.quaternion.copy(smoothedQuat.current);
+      headRef.current.quaternion.setFromEuler(euler);
     }
 
     // Eyes: make a subtle smoothed rotation using eyeLook values if available
@@ -174,7 +167,7 @@ export default function AvatarScene({
         <ambientLight intensity={0.8} />
         <directionalLight position={[1, 1, 1]} intensity={1.5} />
         <AvatarModel blendshapes={blendshapes} headRotation={headRotation} />
-        <Environment preset="studio" />
+        <Environment files="/src/assets/studio.hdr" />
         <OrbitControls target={[0, 1.5, 0]} enablePan={false} />
       </Canvas>
     </div>

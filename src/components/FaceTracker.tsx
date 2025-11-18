@@ -58,6 +58,16 @@ export default function FaceTracker({
       const drawingUtils = new DrawingUtils(ctx);
 
       const detectFrame = async () => {
+        // Guard: Only run detection if video is ready and has dimensions
+        if (
+          !videoRef.current ||
+          videoRef.current.videoWidth === 0 ||
+          videoRef.current.videoHeight === 0
+        ) {
+          animationFrameId = requestAnimationFrame(detectFrame);
+          return;
+        }
+
         if (!faceLandmarker || !videoRef.current) {
           animationFrameId = requestAnimationFrame(detectFrame);
           return;
@@ -205,7 +215,7 @@ export default function FaceTracker({
           position: "absolute",
           top: 0,
           left: 0,
-          transform: "scaleX(-1)",
+          //transform: "scaleX(-1)",
           objectFit: "cover",
         }}
       />
@@ -218,7 +228,7 @@ export default function FaceTracker({
           top: 0,
           left: 0,
           pointerEvents: "none",
-          transform: "scaleX(-1)",
+          //transform: "scaleX(-1)",
         }}
       />
       {!ready && (
