@@ -157,7 +157,12 @@ export default function FaceTracker({
         playsInline
         width={640}
         height={480}
-        style={{ position: "absolute", top: 0, left: 0 }}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          //transform: "scaleX(-1)",
+        }}
       />
       <canvas
         ref={canvasRef}
@@ -168,6 +173,7 @@ export default function FaceTracker({
           top: 0,
           left: 0,
           pointerEvents: "none",
+          //transform: "scaleX(-1)",
         }}
       />
       {!ready && (
