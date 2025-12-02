@@ -46,7 +46,7 @@ export default function CameraView() {
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          //transform: "scaleX(-1)",
+          transform: "scaleX(-1)",
         }}
       />
     </div>

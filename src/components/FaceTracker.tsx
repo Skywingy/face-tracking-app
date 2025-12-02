@@ -203,6 +203,7 @@ export default function FaceTracker({
           top: 0,
           left: 0,
           objectFit: "cover",
+          transform: "scaleX(-1)",
         }}
       />
       <canvas
@@ -214,6 +215,7 @@ export default function FaceTracker({
           top: 0,
           left: 0,
           pointerEvents: "none",
+          transform: "scaleX(-1)",
         }}
       />
       {!ready && (
