@@ -111,7 +111,7 @@ function AvatarModel({ dataRef }: AvatarModelProps) {
 
     // Apply raw head rotation (NO smoothing, NO eyebrow mapping)
     if (headRef.current) {
-      headRef.current.rotation.x = headRotation.x;
+      headRef.current.rotation.x = -headRotation.x;
       headRef.current.rotation.y = headRotation.y;
       headRef.current.rotation.z = headRotation.z;
     }
