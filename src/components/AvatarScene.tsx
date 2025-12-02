@@ -5,11 +5,13 @@ import { useRef, useEffect } from "react";
 import * as THREE from "three";
 
 interface AvatarModelProps {
-  blendshapes: Record<string, number>;
-  headRotation: { x: number; y: number; z: number };
+  dataRef: React.MutableRefObject<{
+    blendshapes: Record<string, number>;
+    headRotation: { x: number; y: number; z: number };
+  }>;
 }
 
-// Mapping MediaPipe blendshapes -> model morph target names
+// Mapping MediaPipe blendshapes -> model morph target names (kept same as before)
 const blendshapeMap: Record<string, string> = {
   browDownLeft: "browDownLeft",
   browDownRight: "browDownRight",
@@ -71,7 +73,7 @@ const blendshapeMap: Record<string, string> = {
   tongueOut: "tongueOut",
 };
 
-function AvatarModel({ blendshapes, headRotation }: AvatarModelProps) {
+function AvatarModel({ dataRef }: AvatarModelProps) {
   const gltf = useGLTF("/models/avatar.glb");
 
   const headRef = useRef<THREE.Bone>();
@@ -79,26 +81,21 @@ function AvatarModel({ blendshapes, headRotation }: AvatarModelProps) {
   const rightEyeRef = useRef<THREE.Bone>();
   const headMeshRef = useRef<THREE.SkinnedMesh>();
 
-  // smoothed quaternion for head
-  const smoothedQuat = useRef(new THREE.Quaternion());
-  const targetQuat = useRef(new THREE.Quaternion());
-
   useEffect(() => {
     const nodes = gltf.nodes as any;
     headRef.current = nodes.Head;
     leftEyeRef.current = nodes.LeftEye;
     rightEyeRef.current = nodes.RightEye;
     headMeshRef.current = nodes.Wolf3D_Head;
-
-    // initialize smoothedQuat to current head rotation if available
-    if (headRef.current) {
-      smoothedQuat.current.copy(headRef.current.quaternion);
-    }
   }, [gltf.nodes]);
 
   useFrame(() => {
     if (!headMeshRef.current) return;
     const headMesh = headMeshRef.current;
+
+    // read live values from ref (no React re-renders)
+    const blendshapes = dataRef.current.blendshapes || {};
+    const headRotation = dataRef.current.headRotation || { x: 0, y: 0, z: 0 };
 
     // Apply morph targets
     for (const [mediaPipeName, score] of Object.entries(blendshapes)) {
@@ -108,36 +105,23 @@ function AvatarModel({ blendshapes, headRotation }: AvatarModelProps) {
         headMesh.morphTargetDictionary?.[targetName] !== undefined
       ) {
         const index = headMesh.morphTargetDictionary[targetName];
-        // small scale tweak for some targets might be useful later
         headMesh.morphTargetInfluences![index] = score;
       }
     }
 
-    // Apply head rotation from headRotation prop directly (no smoothing)
+    // Apply raw head rotation (NO smoothing, NO eyebrow mapping)
     if (headRef.current) {
-      const euler = new THREE.Euler(
-        headRotation.x,
-        headRotation.y,
-        headRotation.z,
-        "XYZ"
-      );
-      headRef.current.quaternion.setFromEuler(euler);
+      headRef.current.rotation.x = headRotation.x;
+      headRef.current.rotation.y = headRotation.y;
+      headRef.current.rotation.z = headRotation.z;
     }
 
-    // Eyes: make a subtle smoothed rotation using eyeLook values if available
+    // Eyes: simple mapping (small)
     if (leftEyeRef.current && rightEyeRef.current) {
-      const lookUp =
-        (blendshapes.eyeLookUpLeft ?? 0) - (blendshapes.eyeLookDownLeft ?? 0);
       const lookRight =
         (blendshapes.eyeLookOutRight ?? 0) - (blendshapes.eyeLookInRight ?? 0);
-
-      // target rotations (small)
-      const eyeTargetY = (lookRight - lookUp) * 0.2;
-      // lerp eye rotations
-      leftEyeRef.current.rotation.y +=
-        (eyeTargetY - leftEyeRef.current.rotation.y) * 0.2;
-      rightEyeRef.current.rotation.y +=
-        (eyeTargetY - rightEyeRef.current.rotation.y) * 0.2;
+      leftEyeRef.current.rotation.y = lookRight * 0.25;
+      rightEyeRef.current.rotation.y = lookRight * 0.25;
     }
   });
 
@@ -145,14 +129,13 @@ function AvatarModel({ blendshapes, headRotation }: AvatarModelProps) {
 }
 
 interface AvatarSceneProps {
-  blendshapes: Record<string, number>;
-  headRotation: { x: number; y: number; z: number };
+  dataRef: React.MutableRefObject<{
+    blendshapes: Record<string, number>;
+    headRotation: { x: number; y: number; z: number };
+  }>;
 }
 
-export default function AvatarScene({
-  blendshapes,
-  headRotation,
-}: AvatarSceneProps) {
+export default function AvatarScene({ dataRef }: AvatarSceneProps) {
   return (
     <div
       style={{
@@ -166,8 +149,8 @@ export default function AvatarScene({
       <Canvas camera={{ position: [0, 0, 3] }}>
         <ambientLight intensity={0.8} />
         <directionalLight position={[1, 1, 1]} intensity={1.5} />
-        <AvatarModel blendshapes={blendshapes} headRotation={headRotation} />
-        <Environment files="/src/assets/studio.hdr" />
+        <AvatarModel dataRef={dataRef} />
+        <Environment preset="studio" />
         <OrbitControls target={[0, 1.5, 0]} enablePan={false} />
       </Canvas>
     </div>

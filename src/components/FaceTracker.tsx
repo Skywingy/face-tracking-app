@@ -6,13 +6,15 @@ import {
   DrawingUtils,
 } from "@mediapipe/tasks-vision";
 
+// This component writes realtime results into a mutable ref provided by the parent.
+// That avoids React state updates each frame and prevents re-render flicker.
 export default function FaceTracker({
-  onFaceData,
+  outRef,
 }: {
-  onFaceData: (data: {
+  outRef: React.MutableRefObject<{
     blendshapes: Record<string, number>;
     headRotation: { x: number; y: number; z: number };
-  }) => void;
+  }>;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,16 +60,6 @@ export default function FaceTracker({
       const drawingUtils = new DrawingUtils(ctx);
 
       const detectFrame = async () => {
-        // Guard: Only run detection if video is ready and has dimensions
-        if (
-          !videoRef.current ||
-          videoRef.current.videoWidth === 0 ||
-          videoRef.current.videoHeight === 0
-        ) {
-          animationFrameId = requestAnimationFrame(detectFrame);
-          return;
-        }
-
         if (!faceLandmarker || !videoRef.current) {
           animationFrameId = requestAnimationFrame(detectFrame);
           return;
@@ -88,7 +80,6 @@ export default function FaceTracker({
 
         if (result?.faceLandmarks?.length) {
           for (const landmarks of result.faceLandmarks) {
-            // ✨ Face mesh overlay with different colors per region
             drawingUtils.drawConnectors(
               landmarks,
               FaceLandmarker.FACE_LANDMARKS_TESSELATION,
@@ -150,10 +141,8 @@ export default function FaceTracker({
           );
         }
 
-        // extract head rotation from facialTransformationMatrixes (if present)
         if (result?.facialTransformationMatrixes?.length) {
           const m = result.facialTransformationMatrixes[0].data;
-
           const r00 = m[0],
             r01 = m[1],
             r02 = m[2];
@@ -169,16 +158,14 @@ export default function FaceTracker({
             y: Math.atan2(-r20, Math.sqrt(r21 * r21 + r22 * r22)),
             z: Math.atan2(r10, r00),
           };
-
-          // compensate for mirrored display (we mirror video/canvas visually)
-          headRotation.y *= -1;
         }
 
-        // send both blendshapes and headRotation
+        // write into outRef (no React state updates -> no re-render flicker)
         try {
-          onFaceData({ blendshapes: shapes, headRotation });
+          outRef.current.blendshapes = shapes;
+          outRef.current.headRotation = headRotation;
         } catch (err) {
-          // avoid noisy errors if parent hasn't provided handler
+          // ignore if outRef isn't ready
         }
 
         animationFrameId = requestAnimationFrame(detectFrame);
@@ -191,7 +178,7 @@ export default function FaceTracker({
 
     return () => cancelAnimationFrame(animationFrameId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onFaceData]);
+  }, [outRef]);
 
   return (
     <div
@@ -215,7 +202,6 @@ export default function FaceTracker({
           position: "absolute",
           top: 0,
           left: 0,
-          //transform: "scaleX(-1)",
           objectFit: "cover",
         }}
       />
@@ -228,7 +214,6 @@ export default function FaceTracker({
           top: 0,
           left: 0,
           pointerEvents: "none",
-          //transform: "scaleX(-1)",
         }}
       />
       {!ready && (

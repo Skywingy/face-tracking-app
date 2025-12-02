@@ -1,14 +1,17 @@
 // src/App.tsx
-import React, { useState } from "react";
+import React, { useRef } from "react";
 import FaceTracker from "./components/FaceTracker";
 import AvatarScene from "./components/AvatarScene";
 import CameraView from "./components/CameraView";
 
+// Use a mutable ref shared between FaceTracker and AvatarScene to avoid React re-renders
+const initial = {
+  blendshapes: {} as Record<string, number>,
+  headRotation: { x: 0, y: 0, z: 0 },
+};
+
 export default function App() {
-  const [data, setData] = useState({
-    blendshapes: {} as Record<string, number>,
-    headRotation: { x: 0, y: 0, z: 0 },
-  });
+  const dataRef = useRef(initial);
 
   return (
     <div
@@ -21,20 +24,13 @@ export default function App() {
         background: "#111",
       }}
     >
-      {/* left: raw camera */}
       <CameraView />
 
-      {/* middle: mediapipe overlay */}
-      <FaceTracker
-        // ✅ NEW: send both blendshapes + headRotation
-        onFaceData={(d) => setData(d)}
-      />
+      {/* FaceTracker writes live data into dataRef.current */}
+      <FaceTracker outRef={dataRef as any} />
 
-      {/* right: avatar driven by data */}
-      <AvatarScene
-        blendshapes={data.blendshapes}
-        headRotation={data.headRotation}
-      />
+      {/* AvatarScene reads live data from the same ref */}
+      <AvatarScene dataRef={dataRef as any} />
     </div>
   );
 }
