@@ -8,6 +8,7 @@ interface AvatarModelProps {
   dataRef: React.MutableRefObject<{
     blendshapes: Record<string, number>;
     headRotation: { x: number; y: number; z: number };
+    hands?: any;
   }>;
 }
 
@@ -81,12 +82,22 @@ function AvatarModel({ dataRef }: AvatarModelProps) {
   const rightEyeRef = useRef<THREE.Bone>();
   const headMeshRef = useRef<THREE.SkinnedMesh>();
 
+  const leftIndex1 = useRef<THREE.Bone>();
+  const leftIndex2 = useRef<THREE.Bone>();
+  const leftIndex3 = useRef<THREE.Bone>();
+  const leftIndex4 = useRef<THREE.Bone>();
+
   useEffect(() => {
     const nodes = gltf.nodes as any;
     headRef.current = nodes.Head;
     leftEyeRef.current = nodes.LeftEye;
     rightEyeRef.current = nodes.RightEye;
     headMeshRef.current = nodes.Wolf3D_Head;
+
+    leftIndex1.current = nodes.LeftHandIndex1;
+    leftIndex2.current = nodes.LeftHandIndex2;
+    leftIndex3.current = nodes.LeftHandIndex3;
+    leftIndex4.current = nodes.LeftHandIndex4;
   }, [gltf.nodes]);
 
   useFrame(() => {
@@ -96,6 +107,7 @@ function AvatarModel({ dataRef }: AvatarModelProps) {
     // read live values from ref (no React re-renders)
     const blendshapes = dataRef.current.blendshapes || {};
     const headRotation = dataRef.current.headRotation || { x: 0, y: 0, z: 0 };
+    const hands = dataRef.current.hands || [];
 
     // Apply morph targets
     for (const [mediaPipeName, score] of Object.entries(blendshapes)) {
@@ -123,6 +135,14 @@ function AvatarModel({ dataRef }: AvatarModelProps) {
       leftEyeRef.current.rotation.y = lookRight * 0.25;
       rightEyeRef.current.rotation.y = lookRight * 0.25;
     }
+
+    if (hands.length > 0) {
+      // Example: log 21 points of first detected hand
+      console.log("Hand landmarks:", hands[0]);
+
+      // Finger animation will go here
+      // leftIndex1.current.rotation.x = ...
+    }
   });
 
   return <primitive object={gltf.scene} scale={1.5} position={[0, -1, 0]} />;
@@ -132,6 +152,7 @@ interface AvatarSceneProps {
   dataRef: React.MutableRefObject<{
     blendshapes: Record<string, number>;
     headRotation: { x: number; y: number; z: number };
+    hands?: any;
   }>;
 }
 

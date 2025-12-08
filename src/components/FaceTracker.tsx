@@ -2,18 +2,18 @@
 import { useEffect, useRef, useState } from "react";
 import {
   FaceLandmarker,
+  HandLandmarker,
   FilesetResolver,
   DrawingUtils,
 } from "@mediapipe/tasks-vision";
 
-// This component writes realtime results into a mutable ref provided by the parent.
-// That avoids React state updates each frame and prevents re-render flicker.
 export default function FaceTracker({
   outRef,
 }: {
   outRef: React.MutableRefObject<{
     blendshapes: Record<string, number>;
     headRotation: { x: number; y: number; z: number };
+    hands?: any[];
   }>;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -22,6 +22,7 @@ export default function FaceTracker({
 
   useEffect(() => {
     let faceLandmarker: FaceLandmarker | null = null;
+    let handLandmarker: HandLandmarker | null = null;
     let animationFrameId: number;
 
     async function init() {
@@ -40,14 +41,22 @@ export default function FaceTracker({
         outputFacialTransformationMatrixes: true,
       });
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task",
+        },
+        runningMode: "VIDEO",
+        numHands: 2,
+      });
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        try {
-          await videoRef.current.play();
-        } catch (err) {
-          console.warn("Video play interrupted:", err);
-        }
+        await videoRef.current.play();
       }
 
       setReady(true);
@@ -57,20 +66,21 @@ export default function FaceTracker({
     async function startTracking() {
       const ctx = canvasRef.current?.getContext("2d");
       if (!ctx || !videoRef.current) return;
+
       const drawingUtils = new DrawingUtils(ctx);
 
       const detectFrame = async () => {
-        if (!faceLandmarker || !videoRef.current) {
-          animationFrameId = requestAnimationFrame(detectFrame);
-          return;
-        }
-
         const nowInMs = performance.now();
-        const result = await faceLandmarker.detectForVideo(
-          videoRef.current,
-          nowInMs
-        );
 
+        const faceResult = faceLandmarker
+          ? await faceLandmarker.detectForVideo(videoRef.current!, nowInMs)
+          : null;
+
+        const handResult = handLandmarker
+          ? await handLandmarker.detectForVideo(videoRef.current!, nowInMs)
+          : null;
+
+        // CLEAR OVERLAY
         ctx.clearRect(
           0,
           0,
@@ -78,71 +88,102 @@ export default function FaceTracker({
           canvasRef.current!.height
         );
 
-        if (result?.faceLandmarks?.length) {
-          for (const landmarks of result.faceLandmarks) {
+        // -------------------------------
+        // 🎭 DRAW FACE MESH
+        // -------------------------------
+        if (faceResult?.faceLandmarks?.length) {
+          for (const lm of faceResult.faceLandmarks) {
             drawingUtils.drawConnectors(
-              landmarks,
+              lm,
               FaceLandmarker.FACE_LANDMARKS_TESSELATION,
               { color: "#C0C0C070", lineWidth: 1 }
             );
             drawingUtils.drawConnectors(
-              landmarks,
+              lm,
               FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE,
-              { color: "#FF3030", lineWidth: 1.5 }
+              { color: "#FF3030" }
             );
             drawingUtils.drawConnectors(
-              landmarks,
+              lm,
               FaceLandmarker.FACE_LANDMARKS_RIGHT_EYEBROW,
-              { color: "#FF3030", lineWidth: 1.5 }
+              { color: "#FF3030" }
             );
             drawingUtils.drawConnectors(
-              landmarks,
+              lm,
               FaceLandmarker.FACE_LANDMARKS_LEFT_EYE,
-              { color: "#30FF30", lineWidth: 1.5 }
+              { color: "#30FF30" }
             );
             drawingUtils.drawConnectors(
-              landmarks,
+              lm,
               FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW,
-              { color: "#30FF30", lineWidth: 1.5 }
+              { color: "#30FF30" }
             );
             drawingUtils.drawConnectors(
-              landmarks,
-              FaceLandmarker.FACE_LANDMARKS_FACE_OVAL,
-              { color: "#E0E0E0", lineWidth: 1.5 }
-            );
-            drawingUtils.drawConnectors(
-              landmarks,
+              lm,
               FaceLandmarker.FACE_LANDMARKS_LIPS,
-              { color: "#E0E0E0", lineWidth: 1.5 }
-            );
-            drawingUtils.drawConnectors(
-              landmarks,
-              FaceLandmarker.FACE_LANDMARKS_RIGHT_IRIS,
-              { color: "#FF3030", lineWidth: 1.5 }
-            );
-            drawingUtils.drawConnectors(
-              landmarks,
-              FaceLandmarker.FACE_LANDMARKS_LEFT_IRIS,
-              { color: "#30FF30", lineWidth: 1.5 }
+              { color: "#E0E0E0" }
             );
           }
         }
 
-        // prepare outputs
-        let shapes: Record<string, number> = {};
+        // -------------------------------
+        // ✋ DRAW HAND LANDMARKS (fixed)
+        // -------------------------------
+        if (handResult?.landmarks?.length) {
+          for (const hand of handResult.landmarks) {
+            if (!hand) continue;
+
+            const fingerChains = [
+              [0, 1, 2, 3, 4],
+              [0, 5, 6, 7, 8],
+              [0, 9, 10, 11, 12],
+              [0, 13, 14, 15, 16],
+              [0, 17, 18, 19, 20],
+            ];
+
+            // Draw finger bones
+            for (const chain of fingerChains) {
+              for (let i = 0; i < chain.length - 1; i++) {
+                const a = hand[chain[i]];
+                const b = hand[chain[i + 1]];
+
+                const pts = [a, b];
+
+                drawingUtils.drawConnectors(pts, [{ start: 0, end: 1 }], {
+                  color: "#FFD166",
+                  lineWidth: 2,
+                });
+              }
+            }
+
+            // Draw dots
+            drawingUtils.drawLandmarks(hand, {
+              color: "#EF476F",
+              radius: 2,
+            });
+          }
+        }
+
+        // -------------------------------
+        // 📤 OUTPUT DATA
+        // -------------------------------
+        let blendshapes: Record<string, number> = {};
         let headRotation = { x: 0, y: 0, z: 0 };
 
-        if (result?.faceBlendshapes?.length) {
-          shapes = Object.fromEntries(
-            result.faceBlendshapes[0].categories.map((c) => [
+        // BLENDSHAPES
+        if (faceResult?.faceBlendshapes?.length) {
+          blendshapes = Object.fromEntries(
+            faceResult.faceBlendshapes[0].categories.map((c) => [
               c.categoryName,
               c.score,
             ])
           );
         }
 
-        if (result?.facialTransformationMatrixes?.length) {
-          const m = result.facialTransformationMatrixes[0].data;
+        // HEAD ROTATION
+        if (faceResult?.facialTransformationMatrixes?.length) {
+          const m = faceResult.facialTransformationMatrixes[0].data;
+
           const r00 = m[0],
             r01 = m[1],
             r02 = m[2];
@@ -158,15 +199,18 @@ export default function FaceTracker({
             y: Math.atan2(-r20, Math.sqrt(r21 * r21 + r22 * r22)),
             z: Math.atan2(r10, r00),
           };
+
+          // If mirroring is enabled later:
+          // headRotation.y *= -1;
         }
 
-        // write into outRef (no React state updates -> no re-render flicker)
-        try {
-          outRef.current.blendshapes = shapes;
-          outRef.current.headRotation = headRotation;
-        } catch (err) {
-          // ignore if outRef isn't ready
-        }
+        // HANDS
+        const hands = handResult?.landmarks ?? [];
+
+        // WRITE TO REF
+        outRef.current.blendshapes = blendshapes;
+        outRef.current.headRotation = headRotation;
+        outRef.current.hands = hands;
 
         animationFrameId = requestAnimationFrame(detectFrame);
       };
@@ -177,7 +221,6 @@ export default function FaceTracker({
     init();
 
     return () => cancelAnimationFrame(animationFrameId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outRef]);
 
   return (
@@ -191,6 +234,7 @@ export default function FaceTracker({
         overflow: "hidden",
       }}
     >
+      {/* CAMERA */}
       <video
         ref={videoRef}
         autoPlay
@@ -203,9 +247,11 @@ export default function FaceTracker({
           top: 0,
           left: 0,
           objectFit: "cover",
-          transform: "scaleX(-1)",
+          transform: "scaleX(-1)", // enable if you want mirror
         }}
       />
+
+      {/* OVERLAY */}
       <canvas
         ref={canvasRef}
         width={640}
@@ -215,25 +261,23 @@ export default function FaceTracker({
           top: 0,
           left: 0,
           pointerEvents: "none",
-          transform: "scaleX(-1)",
+          transform: "scaleX(-1)", // mirror together with video
         }}
       />
+
       {!ready && (
         <div
           style={{
             position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(0,0,0,0.4)",
             color: "white",
           }}
         >
-          Loading face model...
+          Loading face + hand models…
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 // src/App.tsx
 import React, { useRef } from "react";
 import FaceTracker from "./components/FaceTracker";
+import HandTracker from "./components/HandTracker";
 import AvatarScene from "./components/AvatarScene";
 import CameraView from "./components/CameraView";
 
@@ -8,6 +9,7 @@ import CameraView from "./components/CameraView";
 const initial = {
   blendshapes: {} as Record<string, number>,
   headRotation: { x: 0, y: 0, z: 0 },
+  hands: [] as any[],
 };
 
 export default function App() {
@@ -21,6 +23,7 @@ export default function App() {
         justifyContent: "center",
         alignItems: "center",
         height: "100vh",
+        width: "100vw",
         background: "#111",
       }}
     >
@@ -28,6 +31,9 @@ export default function App() {
 
       {/* FaceTracker writes live data into dataRef.current */}
       <FaceTracker outRef={dataRef as any} />
+
+      {/* HandTracker writes: hands[] */}
+      {/*   <HandTracker outRef={dataRef as any} /> */}
 
       {/* AvatarScene reads live data from the same ref */}
       <AvatarScene dataRef={dataRef as any} />
