@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   FaceLandmarker,
+  HandLandmarker,
   FilesetResolver,
   DrawingUtils,
 } from "@mediapipe/tasks-vision";
@@ -47,6 +48,10 @@ export default function FaceTracker({
       //   },
       //   runningMode: "VIDEO",
       //   numHands: 2,
+      //   modelComplexity: 0, // 0 = faster, less accurate
+      //   minHandDetectionConfidence: 0.3,
+      //   minHandPresenceConfidence: 0.3,
+      //   minTrackingConfidence: 0.3,
       // });
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -75,9 +80,10 @@ export default function FaceTracker({
           ? await faceLandmarker.detectForVideo(videoRef.current!, nowInMs)
           : null;
 
-        // const handResult = handLandmarker
-        //   ? await handLandmarker.detectForVideo(videoRef.current!, nowInMs)
-        //   : null;
+        // const handResult =
+        //   handFrameCount % 2 === 0 && handLandmarker
+        //     ? await handLandmarker.detectForVideo(videoRef.current!, nowInMs)
+        //     : null;
 
         // CLEAR OVERLAY
         ctx.clearRect(

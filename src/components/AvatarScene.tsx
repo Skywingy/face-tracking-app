@@ -86,6 +86,31 @@ function AvatarModel({ dataRef }: AvatarModelProps) {
   const leftIndex2 = useRef<THREE.Bone>();
   const leftIndex3 = useRef<THREE.Bone>();
   const leftIndex4 = useRef<THREE.Bone>();
+  const rightIndex1 = useRef<THREE.Bone>();
+  const rightIndex2 = useRef<THREE.Bone>();
+  const rightIndex3 = useRef<THREE.Bone>();
+  const rightIndex4 = useRef<THREE.Bone>();
+
+  const getFingerCurl = (
+    landmarks: any[],
+    mcp: number,
+    pip: number,
+    dip: number,
+    tip: number,
+  ) => {
+    const mcpPos = new THREE.Vector3(
+      landmarks[mcp].x,
+      landmarks[mcp].y,
+      landmarks[mcp].z,
+    );
+    const tipPos = new THREE.Vector3(
+      landmarks[tip].x,
+      landmarks[tip].y,
+      landmarks[tip].z,
+    );
+    const distance = mcpPos.distanceTo(tipPos);
+    return distance < 0.15 ? 1 : 0; // 1 = curled, adjust threshold
+  };
 
   useEffect(() => {
     const nodes = gltf.nodes as any;
@@ -98,6 +123,10 @@ function AvatarModel({ dataRef }: AvatarModelProps) {
     leftIndex2.current = nodes.LeftHandIndex2;
     leftIndex3.current = nodes.LeftHandIndex3;
     leftIndex4.current = nodes.LeftHandIndex4;
+    rightIndex1.current = nodes.RightHandIndex1;
+    rightIndex2.current = nodes.RightHandIndex2;
+    rightIndex3.current = nodes.RightHandIndex3;
+    rightIndex4.current = nodes.RightHandIndex4;
   }, [gltf.nodes]);
 
   useFrame(() => {
@@ -136,13 +165,19 @@ function AvatarModel({ dataRef }: AvatarModelProps) {
       rightEyeRef.current.rotation.y = lookRight * 0.25;
     }
 
-    if (hands.length > 0) {
-      // Example: log 21 points of first detected hand
-      console.log("Hand landmarks:", hands[0]);
-
-      // Finger animation will go here
-      // leftIndex1.current.rotation.x = ...
-    }
+    // if (hands.length > 0) {
+    //   const leftLandmarks = hands[0]; // assume first detected hand is left
+    //   if (leftLandmarks && leftLandmarks.length >= 21) {
+    //     // Index finger only
+    //     const indexCurl = getFingerCurl(leftLandmarks, 5, 6, 7, 8);
+    //     console.log("Index curl:", indexCurl);
+    //     const indexRot = indexCurl * 0.5; // positive for curl
+    //     rightIndex1.current!.rotation.x = indexRot; // try right instead
+    //     rightIndex2.current!.rotation.x = indexRot;
+    //     rightIndex3.current!.rotation.x = indexRot;
+    //     rightIndex4.current!.rotation.x = indexRot;
+    //   }
+    // }
   });
 
   return <primitive object={gltf.scene} scale={1.5} position={[0, -1, 0]} />;
